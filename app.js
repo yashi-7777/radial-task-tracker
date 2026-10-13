@@ -237,6 +237,7 @@
   }
 
   const state = load();
+  const widgetRoots = new Set(); // containers currently showing the compact widget (popup page or floating window)
 
   function save() {
     try {
@@ -244,11 +245,16 @@
     } catch {
       toast("Could not save: browser storage is full or blocked.", "error");
     }
+    widgetRoots.forEach(renderWidget);
+  }
+
+  function setState(next) {
+    Object.keys(state).forEach((k) => delete state[k]);
+    Object.assign(state, next);
   }
 
   function replaceState(next) {
-    Object.keys(state).forEach((k) => delete state[k]);
-    Object.assign(state, next);
+    setState(next);
     save();
   }
 
@@ -390,7 +396,7 @@
 
     svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
 
-    const GAP = 16; // degrees left open so the wheel reads as a spiral with a start and an end
+    const GAP = plan.categories.length ? 44 : 16; // opening left in the wheel; it holds the task names at the start of each ring
     const totalSpan = 360 - GAP;
     const anglePerDay = totalSpan / n;
     const angleOffset = 180 + GAP / 2; // opening centred at the bottom
@@ -462,6 +468,27 @@
       const a = polar(cx, cy, innerHole - 4, angle);
       const b = polar(cx, cy, outerR + 4, angle);
       svg.appendChild(svgEl("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, stroke: "#8e8e8e", "stroke-width": 2, "pointer-events": "none" }));
+    });
+
+    // task names sit in the opening, right at the start of their own ring
+    plan.categories.forEach((cat, ringIdx) => {
+      const rMid = innerHole + ringIdx * (ringWidth + ringGap) + ringWidth / 2;
+      const a = polar(cx, cy, rMid, angleOffset);
+      const b = polar(cx, cy, rMid, angleOffset + totalSpan);
+      const y = (a.y + polar(cx, cy, rMid, 180).y) / 2;
+      const width = b.x - a.x - 8;
+      svg.appendChild(svgEl("rect", {
+        x: a.x + 4, y: y - 15, width, height: 30, rx: 8, fill: cat.color, "fill-opacity": 0.14, "pointer-events": "none"
+      }));
+      svg.appendChild(svgEl("circle", { cx: a.x + 14, cy: y, r: 4.5, fill: cat.color, "pointer-events": "none" }));
+      const textW = width - 28;
+      const label = svgEl("text", { x: a.x + 24, y, class: "ring-label", "dominant-baseline": "central" });
+      if (cat.name.length * 7.4 > textW) {
+        label.setAttribute("textLength", textW);
+        label.setAttribute("lengthAdjust", "spacingAndGlyphs");
+      }
+      label.textContent = cat.name;
+      svg.appendChild(label);
     });
 
     deadlineMarks.forEach((m) => svg.appendChild(m));
@@ -973,6 +1000,120 @@
     renderBody();
   }
 
+  // ---------- compact widget (popup page or always-on-top floating window) ----------
+  const PRIO_RANK = { high: 0, medium: 1, low: 2 };
+
+  function renderWidget(box) {
+    if (!box.isConnected) return widgetRoots.delete(box);
+    const ae = box.ownerDocument.activeElement;
+    if (ae && ae.tagName === "INPUT" && box.contains(ae) && ae.value) return; // don't wipe a half-typed to-do
+    const plan = activePlan();
+    const t = todayISO();
+
+    const head = h("div", { class: "w-head" },
+      h("strong", { class: "w-title", text: "Action Plan" }),
+      state.plans.length > 1
+        ? h("select", {
+          class: "input input-sm w-select", "aria-label": "Plan",
+          onchange: (e) => { state.activePlanId = e.target.value; save(); }
+        }, state.plans.map((p) => h("option", { value: p.id, selected: p.id === plan.id }, p.name)))
+        : null,
+      h("a", { class: "icon-btn", href: location.href.split("#")[0], target: "_blank", rel: "noopener", title: "Open dashboard", "aria-label": "Open dashboard" }, icon("overview", 16)));
+
+    let planCard;
+    if (!plan) {
+      planCard = h("section", { class: "w-card" }, h("p", { class: "muted small", text: "No plans yet. Create one in the dashboard." }));
+    } else {
+      const st = planStatus(plan);
+      const pr = planProgress(plan);
+      const running = t >= plan.startDate && t <= planEnd(plan);
+      let today;
+      if (!plan.categories.length) today = h("p", { class: "muted small", text: "No tasks in this plan yet." });
+      else if (!running) today = h("p", { class: "muted small", text: "This plan isn't running today." });
+      else {
+        today = h("ul", { class: "w-list" }, plan.categories.map((cat) => {
+          const on = !!(plan.ticks[cat.id] && plan.ticks[cat.id][t]);
+          return h("li", {}, h("button", {
+            class: "w-item" + (on ? " done" : ""), type: "button", "aria-pressed": String(on),
+            title: on ? "Untick for today" : "Tick for today",
+            onclick: () => { toggleTick(plan, cat.id, t); }
+          }, h("span", { class: "check" + (on ? " on" : "") }, on ? icon("check", 12) : null),
+          h("span", { class: "dot", style: `background:${cat.color}` }),
+          h("span", { class: "w-name", text: cat.name }),
+          deadlineBadge(plan, cat)));
+        }));
+      }
+      planCard = h("section", { class: "w-card" },
+        h("div", { class: "w-row" }, h("strong", { text: plan.name }), h("span", { class: "badge " + st.key, text: st.label })),
+        h("div", { class: "w-big" }, `${pr.pct}%`, h("span", { class: "muted small", text: ` ${pr.done}/${pr.total} ticks` })),
+        bar(pr.pct),
+        h("h3", { class: "w-sub", text: "Today" }),
+        today);
+    }
+
+    const open = state.todos.filter((x) => !x.done)
+      .sort((a, b) => PRIO_RANK[a.priority] - PRIO_RANK[b.priority] || (a.due || "9999").localeCompare(b.due || "9999"));
+    const input = h("input", { class: "input input-sm grow", type: "text", placeholder: "Quick add a to-do", maxlength: "200", "aria-label": "Quick add a to-do" });
+    const todoCard = h("section", { class: "w-card" },
+      h("div", { class: "w-row" }, h("h3", { class: "w-sub", text: "To-dos" }), h("span", { class: "muted small", text: `${open.length} open` })),
+      open.length
+        ? h("ul", { class: "w-list" }, open.slice(0, 7).map((x) => {
+          const late = x.due && x.due < t;
+          return h("li", {}, h("button", {
+            class: "w-item", type: "button", title: "Mark as done",
+            onclick: () => { x.done = true; save(); }
+          }, h("span", { class: "check" }),
+          h("span", { class: "prio " + x.priority, title: x.priority + " priority" }),
+          h("span", { class: "w-name", text: x.text, title: x.text }),
+          x.due ? h("span", { class: "badge " + (late ? "late" : x.due === t ? "soon" : "neutral"), text: x.due === t ? "Today" : fmt(x.due, SHORT) }) : null));
+        }))
+        : h("p", { class: "muted small", text: "Nothing pending. Nice work." }),
+      open.length > 7 ? h("p", { class: "muted small", text: `+${open.length - 7} more in the dashboard` }) : null,
+      h("form", {
+        class: "row-form", novalidate: true,
+        onsubmit: (e) => {
+          e.preventDefault();
+          const v = input.value.trim();
+          if (!v) return;
+          state.todos.push({ id: uid(), text: v, priority: "medium", due: "", done: false, created: Date.now() });
+          input.value = "";
+          save();
+        }
+      }, input, h("button", { class: "btn btn-primary btn-sm", type: "submit", "aria-label": "Add to-do" }, icon("plus", 14))));
+
+    box.replaceChildren(head, planCard, todoCard);
+  }
+
+  function pageWidget(root) {
+    const box = h("div", { class: "widget" });
+    root.append(box);
+    widgetRoots.add(box);
+    renderWidget(box);
+  }
+
+  // Opens the widget as an always-on-top floating window where the browser supports it, else as a small pop-up.
+  async function openWidget() {
+    if (window.documentPictureInPicture) {
+      try {
+        const pip = await window.documentPictureInPicture.requestWindow({ width: 340, height: 580 });
+        pip.document.head.append(
+          h("link", { rel: "stylesheet", href: new URL("styles.css", location.href).href }),
+          h("title", { text: "Action Plan widget" }));
+        pip.document.body.className = "widget-mode pip";
+        const box = h("div", { class: "widget" });
+        pip.document.body.append(box);
+        widgetRoots.add(box);
+        renderWidget(box);
+        pip.addEventListener("pagehide", () => widgetRoots.delete(box));
+        return;
+      } catch (err) {
+        console.warn("Floating window unavailable, falling back to a pop-up.", err);
+      }
+    }
+    const w = window.open(location.href.split("#")[0] + "#/widget", "radialWidget", "popup=yes,width=360,height=640");
+    if (!w) toast("Allow pop-ups for this page to open the widget.", "error");
+  }
+
   // ---------- shell: routing, sidebar, import / export ----------
   const ctx = {
     state, save, h, icon, bar, toast, uid, todayISO, diffDays, fmt, SHORT, emptyState, statCard, clamp, isISO, parseISO
@@ -984,7 +1125,8 @@
     { id: "windows", label: "7/30/90-Day Plans", sub: "Zoom into the next 7, 30, 90 or custom days", icon: "calendar", render: pageWindows },
     { id: "todo", label: "To-Do List", sub: "Capture, prioritise and finish tasks", icon: "todo", render: (r) => window.Pages.todo(r, ctx) },
     { id: "manifest", label: "Manifestation", sub: "Vision, daily affirmations and actionable goals", icon: "manifest", render: (r) => window.Pages.manifest(r, ctx) },
-    { id: "notes", label: "Important Notes", sub: "Pin, edit and keep what matters", icon: "notes", render: (r) => window.Pages.notes(r, ctx) }
+    { id: "notes", label: "Important Notes", sub: "Pin, edit and keep what matters", icon: "notes", render: (r) => window.Pages.notes(r, ctx) },
+    { id: "widget", label: "Widget", sub: "Compact view", icon: "overview", render: pageWidget, hidden: true }
   ];
 
   const appEl = $("app");
@@ -1010,6 +1152,7 @@
     $("pageSub").textContent = r.sub;
     $("topDate").textContent = new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
     document.title = `${r.label} · Radial Action Plan`;
+    document.body.classList.toggle("widget-mode", id === "widget");
     const page = h("div", { class: "page page-" + id });
     view.replaceChildren(page);
     view.scrollTop = 0;
@@ -1075,7 +1218,7 @@
     importFile.value = "";
   });
 
-  nav.append(...routes.map((r) =>
+  nav.append(...routes.filter((r) => !r.hidden).map((r) =>
     h("a", { class: "nav-link", href: "#/" + r.id, title: r.label, "data-route": r.id }, icon(r.icon), h("span", { class: "label", text: r.label }))));
   const collapseBtn = navButton("collapse", "Collapse menu", () => {
     state.ui.collapsed = !state.ui.collapsed;
@@ -1084,6 +1227,7 @@
   });
   collapseBtn.classList.add("collapse-btn");
   $("sidebarFoot").append(
+    navButton("pin", "Desktop widget", openWidget),
     navButton("download", "Export JSON", exportData),
     navButton("upload", "Import JSON", () => importFile.click()),
     collapseBtn);
@@ -1092,6 +1236,19 @@
   $("scrim").addEventListener("click", () => setNavOpen(false));
   document.addEventListener("keydown", (e) => e.key === "Escape" && setNavOpen(false));
   window.addEventListener("hashchange", render);
+  // keep every open window (dashboard, pop-up widget, other tabs) in sync
+  window.addEventListener("storage", (e) => {
+    if (e.key !== KEY || !e.newValue) return;
+    try {
+      setState(sanitize(JSON.parse(e.newValue)));
+    } catch {
+      return;
+    }
+    applySidebar();
+    widgetRoots.forEach(renderWidget);
+    const a = document.activeElement;
+    if (currentRoute() !== "widget" && !(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) render();
+  });
 
   applySidebar();
   save();
