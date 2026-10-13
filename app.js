@@ -1018,6 +1018,17 @@
     return container;
   }
 
+  // Today's motivation: one of the user's own affirmations (rotates daily), else their vision, else a default line.
+  function quoteBlock() {
+    const list = state.manifest.affirmations;
+    const day = diffDays("1970-01-01", todayISO());
+    let q = list.length ? list[day % list.length].text : (state.manifest.vision || "").trim().split("\n")[0];
+    if (!q) q = "Small steps every day build the life you want.";
+    return h("blockquote", { class: "w-quote" },
+      h("span", { class: "eyebrow", text: "Today's motivation" }),
+      h("p", { text: `\u201c${q}\u201d` }));
+  }
+
   function renderWidget(box) {
     if (!box.isConnected) return widgetRoots.delete(box);
     const ae = box.ownerDocument.activeElement;
@@ -1044,7 +1055,7 @@
       const running = t >= plan.startDate && t <= planEnd(plan);
       let today;
       if (!plan.categories.length) today = h("p", { class: "muted small", text: "No tasks in this plan yet." });
-      else if (!running) today = h("p", { class: "muted small", text: "This plan isn't running today." });
+      else if (!running) today = quoteBlock();
       else {
         today = h("ul", { class: "w-list" }, plan.categories.map((cat) => {
           const on = !!(plan.ticks[cat.id] && plan.ticks[cat.id][t]);
@@ -1063,7 +1074,7 @@
         h("div", { class: "w-big" }, `${pr.pct}%`, h("span", { class: "muted small", text: ` ${pr.done}/${pr.total} ticks` })),
         bar(pr.pct),
         wheelBox(plan),
-        h("h3", { class: "w-sub", text: "Today" }),
+        running || !plan.categories.length ? h("h3", { class: "w-sub", text: "Today" }) : null,
         today);
     }
 
@@ -1115,7 +1126,7 @@
       try {
         const pip = await window.documentPictureInPicture.requestWindow({ width: 380, height: 760 });
         pip.document.head.append(
-          h("link", { rel: "stylesheet", href: new URL("styles.css?v=5", location.href).href }),
+          h("link", { rel: "stylesheet", href: new URL("styles.css?v=6", location.href).href }),
           h("title", { text: "Action Plan widget" }));
         pip.document.body.className = "widget-mode pip";
         const box = h("div", { class: "widget" });
