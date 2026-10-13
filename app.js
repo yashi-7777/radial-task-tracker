@@ -380,15 +380,15 @@
   }
   const hideTooltip = () => tooltip.classList.remove("visible");
 
-  function drawChart(plan, svg, container, onTick) {
+  function drawChart(plan, svg, container, onTick, compact = false) {
     svg.replaceChildren();
     const n = Math.max(1, plan.totalDays);
     const catCount = Math.max(1, plan.categories.length);
 
-    const ringWidth = 44;
-    const ringGap = 6;
-    const innerHole = 130;
-    const labelPad = 70;
+    const ringWidth = compact ? 38 : 44;
+    const ringGap = compact ? 5 : 6;
+    const innerHole = compact ? 80 : 130;
+    const labelPad = compact ? 50 : 70;
     const outerR = innerHole + catCount * (ringWidth + ringGap);
     const size = (outerR + labelPad) * 2;
     const cx = size / 2;
@@ -396,7 +396,7 @@
 
     svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
 
-    const GAP = plan.categories.length ? 44 : 16; // opening left in the wheel; it holds the task names at the start of each ring
+    const GAP = plan.categories.length ? (compact ? 56 : 44) : 16; // opening left in the wheel; it holds the task names at the start of each ring
     const totalSpan = 360 - GAP;
     const anglePerDay = totalSpan / n;
     const angleOffset = 180 + GAP / 2; // opening centred at the bottom
@@ -478,12 +478,12 @@
       const y = (a.y + polar(cx, cy, rMid, 180).y) / 2;
       const width = b.x - a.x - 8;
       svg.appendChild(svgEl("rect", {
-        x: a.x + 4, y: y - 15, width, height: 30, rx: 8, fill: cat.color, "fill-opacity": 0.14, "pointer-events": "none"
+        x: a.x + 4, y: y - (compact ? 13 : 15), width, height: compact ? 26 : 30, rx: 8, fill: cat.color, "fill-opacity": 0.14, "pointer-events": "none"
       }));
       svg.appendChild(svgEl("circle", { cx: a.x + 14, cy: y, r: 4.5, fill: cat.color, "pointer-events": "none" }));
       const textW = width - 28;
-      const label = svgEl("text", { x: a.x + 24, y, class: "ring-label", "dominant-baseline": "central" });
-      if (cat.name.length * 7.4 > textW) {
+      const label = svgEl("text", { x: a.x + 24, y, class: "ring-label", "dominant-baseline": "central", style: compact ? "font-size:16px" : "" });
+      if (cat.name.length * (compact ? 9.4 : 7.4) > textW) {
         label.setAttribute("textLength", textW);
         label.setAttribute("lengthAdjust", "spacingAndGlyphs");
       }
@@ -503,14 +503,14 @@
     }
 
     // day-of-month labels around the outer edge
-    const step = n <= 31 ? 1 : n <= 62 ? 2 : n <= 120 ? 3 : 7;
+    const step = compact ? (n <= 16 ? 1 : n <= 31 ? 2 : n <= 62 ? 4 : n <= 120 ? 10 : 30) : n <= 31 ? 1 : n <= 62 ? 2 : n <= 120 ? 3 : 7;
     for (let i = 0; i < n; i += step) {
       const mid = days[i].start + anglePerDay / 2;
       const pos = polar(cx, cy, outerR + 22, mid);
       const midNorm = ((mid % 360) + 360) % 360;
       const rot = midNorm > 90 && midNorm < 270 ? mid + 180 : mid;
       const t = svgEl("text", {
-        x: pos.x, y: pos.y, class: "day-label", "text-anchor": "middle",
+        x: pos.x, y: pos.y, class: "day-label", "text-anchor": "middle", style: compact ? "font-size:15px" : "",
         transform: `rotate(${rot}, ${pos.x}, ${pos.y})`
       });
       t.textContent = days[i].d.getDate();
@@ -518,6 +518,8 @@
     }
 
     container.style.setProperty("--wheel", size + "px");
+    container.style.setProperty("--hole", (((innerHole - 4) * 2) / size * 100).toFixed(1));
+    container.classList.toggle("tiny-hole", ((innerHole - 4) * 2) / size < 0.26);
   }
 
   // ---------- Overview ----------
@@ -1003,6 +1005,19 @@
   // ---------- compact widget (popup page or always-on-top floating window) ----------
   const PRIO_RANK = { high: 0, medium: 1, low: 2 };
 
+  function wheelBox(plan) {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "Radial progress chart");
+    const container = h("div", { class: "radial-container w-wheel" }, svg,
+      h("div", { class: "center-label" },
+        h("div", { class: "center-title", text: plan.title }),
+        h("div", { class: "center-sub", text: "STARTING FROM" }),
+        h("div", { class: "center-date", text: fmt(plan.startDate, { day: "2-digit", month: "short", year: "numeric" }).toUpperCase() })));
+    drawChart(plan, svg, container, (catId, iso) => toggleTick(plan, catId, iso), true);
+    return container;
+  }
+
   function renderWidget(box) {
     if (!box.isConnected) return widgetRoots.delete(box);
     const ae = box.ownerDocument.activeElement;
@@ -1047,6 +1062,7 @@
         h("div", { class: "w-row" }, h("strong", { text: plan.name }), h("span", { class: "badge " + st.key, text: st.label })),
         h("div", { class: "w-big" }, `${pr.pct}%`, h("span", { class: "muted small", text: ` ${pr.done}/${pr.total} ticks` })),
         bar(pr.pct),
+        wheelBox(plan),
         h("h3", { class: "w-sub", text: "Today" }),
         today);
     }
@@ -1095,7 +1111,7 @@
   async function openWidget() {
     if (window.documentPictureInPicture) {
       try {
-        const pip = await window.documentPictureInPicture.requestWindow({ width: 340, height: 580 });
+        const pip = await window.documentPictureInPicture.requestWindow({ width: 380, height: 760 });
         pip.document.head.append(
           h("link", { rel: "stylesheet", href: new URL("styles.css", location.href).href }),
           h("title", { text: "Action Plan widget" }));
@@ -1110,7 +1126,7 @@
         console.warn("Floating window unavailable, falling back to a pop-up.", err);
       }
     }
-    const w = window.open(location.href.split("#")[0] + "#/widget", "radialWidget", "popup=yes,width=360,height=640");
+    const w = window.open(location.href.split("#")[0] + "#/widget", "radialWidget", "popup=yes,width=400,height=780");
     if (!w) toast("Allow pop-ups for this page to open the widget.", "error");
   }
 
