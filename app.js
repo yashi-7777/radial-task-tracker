@@ -1107,9 +1107,11 @@
     renderWidget(box);
   }
 
-  // Opens the widget as an always-on-top floating window where the browser supports it, else as a small pop-up.
-  async function openWidget() {
-    if (window.documentPictureInPicture) {
+  // Default: a normal small window that stays behind other apps (visible on the desktop).
+  // onTop: an always-on-top floating window where the browser supports it.
+  async function openWidget(onTop) {
+    if (onTop && !window.documentPictureInPicture) toast("Your browser can't float windows on top. Opened as a normal window instead.", "error");
+    if (onTop && window.documentPictureInPicture) {
       try {
         const pip = await window.documentPictureInPicture.requestWindow({ width: 380, height: 760 });
         pip.document.head.append(
@@ -1243,7 +1245,8 @@
   });
   collapseBtn.classList.add("collapse-btn");
   $("sidebarFoot").append(
-    navButton("pin", "Desktop widget", openWidget),
+    navButton("layers", "Desktop widget", () => openWidget(false)),
+    navButton("pin", "Widget always on top", () => openWidget(true)),
     navButton("download", "Export JSON", exportData),
     navButton("upload", "Import JSON", () => importFile.click()),
     collapseBtn);
