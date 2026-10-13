@@ -452,3 +452,7 @@ input[type="color"] { width: 34px; height: 34px; padding: 0; border: 1px solid v
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+.w-quote { margin: 6px 0 0; padding: 12px 14px; border-radius: 12px; background: linear-gradient(135deg, rgba(221,42,123,.10), rgba(129,52,175,.10)); border-left: 3px solid var(--pink, #DD2A7B); }
+.w-quote .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.w-quote p { margin: 4px 0 0; font-size: 15px; font-weight: 600; line-height: 1.4; font-style: italic; }
