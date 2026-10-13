@@ -391,7 +391,7 @@ input[type="color"] { width: 34px; height: 34px; padding: 0; border: 1px solid v
 .w-head { display: flex; align-items: center; gap: 8px; }
 .w-title { flex: 1; font-size: 17px; font-weight: 800; background: var(--grad-btn); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .w-select { max-width: 150px; }
-.w-wheel { width: 100%; min-width: 0; margin: 4px 0; }
+.w-wheel { width: min(100%, 340px, 46vh); min-width: 0; margin: 4px auto; }
 .w-wheel .center-label { width: calc(var(--hole) * 0.88%); }
 .w-wheel .center-title { font-size: calc(var(--hole) * 0.085cqw); line-height: 1.2; }
 .w-wheel .center-sub { margin-top: 4px; font-size: calc(var(--hole) * 0.05cqw); }

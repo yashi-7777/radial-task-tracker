@@ -1115,7 +1115,7 @@
       try {
         const pip = await window.documentPictureInPicture.requestWindow({ width: 380, height: 760 });
         pip.document.head.append(
-          h("link", { rel: "stylesheet", href: new URL("styles.css?v=4", location.href).href }),
+          h("link", { rel: "stylesheet", href: new URL("styles.css?v=5", location.href).href }),
           h("title", { text: "Action Plan widget" }));
         pip.document.body.className = "widget-mode pip";
         const box = h("div", { class: "widget" });
