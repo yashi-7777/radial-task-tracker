@@ -3,69 +3,42 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#DD2A7B" />
 <title>Radial Action Plan</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <h1>Action Plan</h1>
-
-      <section class="panel">
-        <h2>Time Period</h2>
-        <div class="period-buttons" id="periodButtons">
-          <button data-days="10">10 Days</button>
-          <button data-days="30">1 Month</button>
-          <button data-days="90">3 Months</button>
-          <button data-days="365">1 Year</button>
+  <div class="app no-anim" id="app">
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+      <div class="sidebar-head">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 3a9 9 0 1 1-9 9"/><path d="M12 8a4 4 0 1 1-4 4"/></svg>
         </div>
-        <div class="custom-period">
-          <input type="number" id="customDays" min="1" max="1000" placeholder="Custom days" />
-          <button id="applyCustom">Set</button>
-        </div>
-        <label class="start-date-label">
-          Start date
-          <input type="date" id="startDate" />
-        </label>
-      </section>
-
-      <section class="panel">
-        <h2>Tasks</h2>
-        <ul class="task-list" id="taskList"></ul>
-        <form id="addTaskForm" class="add-task-form">
-          <input type="color" id="newTaskColor" value="#2563eb" />
-          <input type="text" id="newTaskName" placeholder="New task name" maxlength="24" required />
-          <button type="submit">Add</button>
-        </form>
-      </section>
-
-      <section class="panel">
-        <h2>Legend</h2>
-        <div class="legend">
-          <div class="legend-item"><span class="swatch done"></span> Done</div>
-          <div class="legend-item"><span class="swatch pending"></span> Pending</div>
-          <div class="legend-item"><span class="swatch weekend"></span> Weekend</div>
-        </div>
-        <div class="stats" id="stats"></div>
-        <button id="resetBtn" class="danger">Clear all ticks</button>
-      </section>
-    </aside>
-
-    <main class="canvas-wrap">
-      <div class="canvas-scroll" id="canvasScroll">
-        <div class="radial-container" id="radialContainer">
-          <svg id="chart" xmlns="http://www.w3.org/2000/svg"></svg>
-          <div class="center-label" id="centerLabel">
-            <div class="center-title" id="centerTitle" contenteditable="true" spellcheck="false"></div>
-            <div class="center-sub">STARTING FROM</div>
-            <div class="center-date" id="centerDate"></div>
-          </div>
-        </div>
+        <span class="brand-name">Action Plan</span>
       </div>
-      <div class="tooltip" id="tooltip"></div>
-    </main>
+      <nav class="nav" id="nav"></nav>
+      <div class="sidebar-foot" id="sidebarFoot"></div>
+    </aside>
+    <div class="scrim" id="scrim"></div>
+
+    <div class="main-col">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="Open menu"></button>
+        <div class="topbar-title">
+          <h1 id="pageTitle"></h1>
+          <p id="pageSub"></p>
+        </div>
+        <div class="topbar-date" id="topDate"></div>
+      </header>
+      <main class="view" id="view" tabindex="-1"></main>
+    </div>
   </div>
 
+  <div class="tooltip" id="tooltip"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <input type="file" id="importFile" accept="application/json,.json" hidden />
+
+  <script src="pages.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
