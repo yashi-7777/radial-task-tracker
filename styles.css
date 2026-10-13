@@ -253,6 +253,7 @@ input[type="color"] { width: 34px; height: 34px; padding: 0; border: 1px solid v
 .day-seg:hover { opacity: 0.7; }
 .weekend-band { pointer-events: none; }
 .day-label { font-size: 10px; fill: #737373; }
+.ring-label { font-size: 13px; font-weight: 700; fill: #262626; pointer-events: none; }
 
 .period-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
 .period-buttons button { padding: 8px 6px; border: 1px solid var(--border-strong); background: #fff; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s; }
@@ -380,6 +381,28 @@ input[type="color"] { width: 34px; height: 34px; padding: 0; border: 1px solid v
 .note h3 { font-size: 16px; word-break: break-word; }
 .note-body { flex: 1; font-size: 14px; line-height: 1.5; color: #404040; white-space: pre-wrap; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }
 .note-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 6px; border-top: 1px solid var(--border); }
+
+/* ---------- Widget ---------- */
+.widget-mode .sidebar, .widget-mode .topbar, .widget-mode .scrim { display: none; }
+.widget-mode .view { padding: 12px; }
+.widget-mode .page { max-width: none; animation: none; }
+.widget-mode.pip { padding: 12px; }
+.widget { display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+.w-head { display: flex; align-items: center; gap: 8px; }
+.w-title { flex: 1; font-size: 17px; font-weight: 800; background: var(--grad-btn); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.w-select { max-width: 150px; }
+.w-card { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+.w-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.w-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-big { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+.w-sub { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.w-card > .w-sub { margin-top: 4px; }
+.w-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.w-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px; border: none; border-radius: 10px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.w-item:hover { background: #f7f2fb; }
+.w-item .check { width: 20px; height: 20px; margin: 0; }
+.w-item.done .w-name { text-decoration: line-through; color: #8e8e8e; }
+.w-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
