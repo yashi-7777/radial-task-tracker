@@ -55,7 +55,10 @@
     layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
     flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
     refresh: '<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>',
-    search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'
+    search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+    book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+    lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    alert: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'
   };
 
   function icon(name, size = 18) {
@@ -171,7 +174,8 @@
         priority: PRIORITIES.includes(t.priority) ? t.priority : "medium",
         due: isISO(t.due) ? t.due : "",
         done: !!t.done,
-        created: Number(t.created) || Date.now()
+        created: Number(t.created) || Date.now(),
+        src: str(t.src, 60) // id of the study session this to-do mirrors, if any
       })).filter((t) => t.text),
       manifest: {
         vision: str(m.vision, 2000),
@@ -192,6 +196,7 @@
         pinned: !!n.pinned,
         updated: Number(n.updated) || Date.now()
       })).filter((n) => n.title || n.body.trim()),
+      study: window.Planner.sanitizeStudy(raw.study, todayISO()),
       ui: { collapsed: !!(isObj(raw.ui) && raw.ui.collapsed) }
     };
   }
@@ -709,7 +714,8 @@
       });
     }
 
-    root.append(statsEl, stripEl,
+    const studyCard = window.Study.todayCard(ctx);
+    root.append(statsEl, ...(studyCard ? [studyCard] : []), stripEl,
       h("div", { class: "overview-grid" }, h("div", { class: "card canvas-card" }, h("div", { class: "canvas-scroll" }, container)), controls));
     nextColor();
     refresh();
@@ -1126,7 +1132,7 @@
       try {
         const pip = await window.documentPictureInPicture.requestWindow({ width: 380, height: 760 });
         pip.document.head.append(
-          h("link", { rel: "stylesheet", href: new URL("styles.css?v=6", location.href).href }),
+          h("link", { rel: "stylesheet", href: new URL("styles.css?v=7", location.href).href }),
           h("title", { text: "Action Plan widget" }));
         pip.document.body.className = "widget-mode pip";
         const box = h("div", { class: "widget" });
@@ -1145,13 +1151,15 @@
 
   // ---------- shell: routing, sidebar, import / export ----------
   const ctx = {
-    state, save, h, icon, bar, toast, uid, todayISO, diffDays, fmt, SHORT, emptyState, statCard, clamp, isISO, parseISO
+    state, save, h, icon, bar, toast, uid, todayISO, diffDays, fmt, SHORT, emptyState, statCard, clamp, isISO, parseISO, PALETTE,
+    toISOAdd: (s, n) => toISO(addDays(s, n))
   };
 
   const routes = [
     { id: "overview", label: "Overview", sub: "Your radial tracker, stats and active plans", icon: "overview", render: pageOverview },
     { id: "plans", label: "Plan Timelines", sub: "Independent plans with their own tasks and deadlines", icon: "plans", render: pagePlans },
     { id: "windows", label: "7/30/90-Day Plans", sub: "Zoom into the next 7, 30, 90 or custom days", icon: "calendar", render: pageWindows },
+    { id: "study", label: "Study Planner", sub: "Turn a syllabus into a realistic day-by-day plan", icon: "book", render: (r) => window.Study.page(r, ctx) },
     { id: "todo", label: "To-Do List", sub: "Capture, prioritise and finish tasks", icon: "todo", render: (r) => window.Pages.todo(r, ctx) },
     { id: "manifest", label: "Manifestation", sub: "Vision, daily affirmations and actionable goals", icon: "manifest", render: (r) => window.Pages.manifest(r, ctx) },
     { id: "notes", label: "Important Notes", sub: "Pin, edit and keep what matters", icon: "notes", render: (r) => window.Pages.notes(r, ctx) },
@@ -1229,7 +1237,7 @@
         const obj = JSON.parse(reader.result);
         const raw = isObj(obj) && isObj(obj.data) ? obj.data : obj;
         const next = isObj(raw) && !raw.plans && raw.categories && raw.startDate ? migrateLegacy(raw) : sanitize(raw);
-        if (!confirm(`Import ${next.plans.length} plan(s), ${next.todos.length} to-do(s) and ${next.notes.length} note(s)? This replaces all current data in this browser.`)) return;
+        if (!confirm(`Import ${next.plans.length} plan(s), ${next.todos.length} to-do(s), ${next.notes.length} note(s) and ${next.study.projects.length} syllabus plan(s)? This replaces all current data in this browser.`)) return;
         replaceState(next);
         applySidebar();
         render();
